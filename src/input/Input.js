@@ -12,6 +12,8 @@ export class Input {
     this.mousePos = new Vec2();
     this.grabRadius = 20;
     this.grabbedParticle = null;
+    this.moved = false; // did the pointer move since the last frame?
+    this.pointerType = "mouse";
     this.bind();
   }
 
@@ -49,12 +51,24 @@ export class Input {
   }
 
   pointermove(e) {
+    this.pointerType = e.pointerType || "mouse";
     this.toLocal(e);
+    this.moved = true; // the push itself is applied once per frame, in applyForces()
 
     if (this.grabbedParticle) {
       this.grabbedParticle.pos.reset(this.mousePos.x, this.mousePos.y);
       this.grabbedParticle.oldPos.reset(this.mousePos.x, this.mousePos.y);
     }
+  }
+
+  // Apply the cursor's repulsion force. Called once per animation frame rather
+  // than once per pointer event: touchscreens fire move events far more often
+  // than the frame rate, so applying it per event used to stack the force up
+  // several times before a frame consumed it, making the cloth react too
+  // strongly. Once per frame keeps the feel consistent across devices.
+  applyForces() {
+    if (!this.moved) return;
+    this.moved = false;
 
     for (const p of this.particles) {
       const diff = this.mousePos.subtractNew(p.pos);

@@ -35,7 +35,7 @@ async function start() {
 
   const cloth = new Cloth(sourceText);
   const renderer = new Renderer(container, sourceText);
-  new Input({ canvas: renderer.canvas, particles: cloth.particles });
+  const input = new Input({ canvas: renderer.canvas, particles: cloth.particles });
 
   let last = 0;
   function frame(time) {
@@ -43,6 +43,7 @@ async function start() {
     const delta = time - last;
     last = time;
 
+    input.applyForces(); // add cursor forces once per frame, before they're consumed
     cloth.update(delta);
     cloth.solve();
     renderer.render(cloth);

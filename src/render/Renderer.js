@@ -1,8 +1,12 @@
 import { CONFIG } from "../config.js";
 
 // Cap the device pixel ratio so we stay crisp on HiDPI screens without making
-// the backing store enormous on 3x/4x displays.
-const getDpr = () => Math.min(window.devicePixelRatio || 1, 2);
+// the backing store enormous. Phones/tablets (coarse pointers) often report a
+// dpr of 2-3 on weaker GPUs, so we cap them lower to keep the frame rate up.
+const getDpr = () => {
+  const cap = window.matchMedia("(pointer: coarse)").matches ? 1.5 : 2;
+  return Math.min(window.devicePixelRatio || 1, cap);
+};
 
 // Owns the canvas and draws the cloth. Each character is pre-rendered once into
 // a small offscreen canvas (a glyph atlas) and then stamped, rotated, per frame.
