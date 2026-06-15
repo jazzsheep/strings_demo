@@ -51,4 +51,16 @@ async function start() {
   requestAnimationFrame(frame);
 }
 
-start();
+// Surface any startup error on screen instead of failing to a silent blank
+// page (handy on mobile, where the dev console isn't easily reachable).
+start().catch((err) => {
+  console.error(err);
+  const el = document.getElementById("container");
+  if (el) {
+    el.innerHTML =
+      '<pre style="margin:0;padding:1em;color:#900;font:14px/1.4 monospace;' +
+      'white-space:pre-wrap;word-break:break-word">' +
+      String((err && err.stack) || err) +
+      "</pre>";
+  }
+});
