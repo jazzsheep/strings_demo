@@ -31,8 +31,17 @@ export function verticalRightToLeft(text, gridW, gridH) {
   }
   columns.push(current);
 
+  // Centre the block of used columns horizontally, so the text sits in the
+  // middle of the cloth regardless of how many columns it occupies. The first
+  // column read sits at the right edge of that centred block (right-to-left).
+  const n = columns.length;
+  const start = Math.max(0, Math.floor((gridW - n) / 2));
+  const rightEdge = start + Math.min(n, gridW) - 1;
+
   return (col, row) => {
-    const column = columns[gridW - 1 - col]; // rightmost on-screen column is the first one read
+    const k = rightEdge - col;
+    if (k < 0 || k >= n) return " ";
+    const column = columns[k];
     return (column && column[row]) || " ";
   };
 }
