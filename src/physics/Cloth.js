@@ -6,26 +6,28 @@ import { Constraint } from "./Constraint.js";
 // The cloth model: a grid of particles wired together with constraints.
 // Owns the simulation state; knows nothing about how it is drawn.
 export class Cloth {
-  constructor(sourceText) {
+  // charAt(col, row) returns the character to place in each cell (see
+  // src/content/layouts.js). Keeping the cloth agnostic about reading order
+  // lets new display modes be added without changing the physics.
+  constructor(charAt) {
     this.particles = [];
     this.constraints = [];
-    this.build(sourceText);
+    this.build(charAt);
   }
 
-  build(text) {
+  build(charAt) {
     const { gridW, gridH, cellWidth, cellHeight, compressFactor, stretchFactor } = CONFIG;
     const { particles, constraints } = this;
 
     // Particles: one per grid cell. The top row (j === 0) is pinned so the
-    // cloth hangs. Each particle carries one character of the source text.
+    // cloth hangs. Each particle carries one character supplied by the layout.
     for (let i = 0; i < gridW; i++) {
       for (let j = 0; j < gridH; j++) {
         const x = i * cellWidth;
         const y = j * cellHeight;
         const id = getPointID(j, i, gridH);
         const pinned = j === 0;
-        const charIndex = (i + j * gridW) % text.length;
-        const char = text[charIndex] || " ";
+        const char = charAt(i, j) || " ";
 
         particles.push(new Particle({ x, y, pinned, id, char }));
       }

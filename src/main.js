@@ -1,40 +1,26 @@
+import { CONFIG } from "./config.js";
 import { Cloth } from "./physics/Cloth.js";
 import { Input } from "./input/Input.js";
 import { Renderer } from "./render/Renderer.js";
-
-// The cloth literally displays this program's own source: at startup we fetch
-// each module and stitch them together into the text stamped onto the grid.
-const SOURCE_FILES = [
-  "src/main.js",
-  "src/config.js",
-  "src/math/Vec2.js",
-  "src/math/grid.js",
-  "src/physics/Particle.js",
-  "src/physics/Constraint.js",
-  "src/physics/Cloth.js",
-  "src/input/Input.js",
-  "src/render/Renderer.js",
-];
-
-async function loadSourceText() {
-  try {
-    const texts = await Promise.all(
-      SOURCE_FILES.map((path) => fetch(path).then((res) => res.text()))
-    );
-    return texts.join("\n");
-  } catch (err) {
-    // fetch only works over http(s); fall back so the demo still runs from file://
-    console.warn("Could not fetch source files; using fallback text.", err);
-    return "strings // a cloth simulation that shows its own source code ".repeat(40);
-  }
-}
+import { resolveMode } from "./content/modes.js";
 
 async function start() {
   const container = document.getElementById("container");
-  const sourceText = await loadSourceText();
+  const { gridW, gridH } = CONFIG;
 
-  const cloth = new Cloth(sourceText);
-  const renderer = new Renderer(container, sourceText);
+  // A "mode" decides what text to show, how to lay it out, and which font to
+  // use. Default is the source code; ?mode=vertical&text=... shows Japanese
+  // vertical writing instead. See src/content/modes.js.
+  const { mode, text } = resolveMode();
+  const rawText = await mode.loadText(text);
+  const charAt = mode.layout(rawText, gridW, gridH);
+
+  const cloth = new Cloth(charAt);
+  const renderer = new Renderer(container, cloth, {
+    fontFamily: mode.fontFamily,
+    fontWeight: mode.fontWeight,
+    charAspect: mode.charAspect,
+  });
   const input = new Input({ canvas: renderer.canvas, particles: cloth.particles });
 
   let last = 0;

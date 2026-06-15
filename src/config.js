@@ -19,6 +19,9 @@ export const CONFIG = {
   mouseStrength: 4,
   contain: false,
   randomSolve: false,
+  // Default content mode; overridable via the ?mode= URL parameter.
+  // See src/content/modes.js for the available modes ("source", "vertical").
+  mode: "source",
 };
 
 CONFIG.cellWidth = CONFIG.awidth / (CONFIG.gridW - 1);

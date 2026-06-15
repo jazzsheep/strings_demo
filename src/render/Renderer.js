@@ -11,13 +11,16 @@ const getDpr = () => {
 // Owns the canvas and draws the cloth. Each character is pre-rendered once into
 // a small offscreen canvas (a glyph atlas) and then stamped, rotated, per frame.
 export class Renderer {
-  constructor(container, sourceText) {
+  constructor(container, cloth, { fontFamily = "monospace", fontWeight = "bold", charAspect = 0.6 } = {}) {
     this.dpr = getDpr();
     this.tilePad = 1.8; // tile size in ems, generous so tall/bold glyphs aren't clipped
+    this.fontFamily = fontFamily;
+    this.fontWeight = fontWeight;
     // Size the glyph to fit its cell in BOTH directions so rows/columns don't
-    // overlap. Monospace advance width is ~0.6em, so width needs cellWidth / 0.6.
-    this.fontSize = Math.max(8, Math.min(CONFIG.cellHeight, CONFIG.cellWidth / 0.6));
-    this.charCanvases = this.buildGlyphAtlas(sourceText);
+    // overlap. charAspect is the glyph's advance width in ems (~0.6 for
+    // monospace, ~1.0 for full-width CJK), so the width needs cellWidth / aspect.
+    this.fontSize = Math.max(8, Math.min(CONFIG.cellHeight, CONFIG.cellWidth / charAspect));
+    this.charCanvases = this.buildGlyphAtlas(cloth);
 
     this.canvas = document.createElement("canvas");
     container.innerHTML = "";
@@ -39,17 +42,21 @@ export class Renderer {
     canvas.style.height = window.innerHeight + "px";
   }
 
-  buildGlyphAtlas(text) {
-    const { dpr, tilePad, fontSize } = this;
+  buildGlyphAtlas(cloth) {
+    const { dpr, tilePad, fontSize, fontFamily, fontWeight } = this;
     const atlas = {};
-    for (const ch of new Set(text)) {
-      if (ch === " ") continue;
+    // Only the characters actually placed on the cloth need a tile.
+    const used = new Set();
+    for (const p of cloth.particles) {
+      if (p.char && p.char !== " ") used.add(p.char);
+    }
+    for (const ch of used) {
       const off = document.createElement("canvas");
       // Render at dpr resolution; the logical size it represents is fontSize * tilePad.
       off.width = off.height = Math.ceil(fontSize * tilePad * dpr);
       const octx = off.getContext("2d");
       octx.scale(dpr, dpr);
-      octx.font = `bold ${fontSize}px monospace`;
+      octx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
       octx.textAlign = "center";
       octx.textBaseline = "middle";
       octx.fillStyle = "#333";
