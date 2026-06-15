@@ -8,20 +8,39 @@ the cursor near the cloth to push it around.
 
 ## Run it locally
 
-Because `script.js` uses ES module `import`, you can't just double-click
-`index.html` (the `file://` protocol blocks module loading). Serve it over HTTP:
+The code is split into native ES modules (no build step), and `src/main.js`
+also `fetch`es the source files to display them on the cloth. Both require
+HTTP, so you can't just double-click `index.html` (the `file://` protocol
+blocks module loading and `fetch`). Serve it over HTTP:
 
 - **VS Code:** install the *Live Server* extension, then right-click
   `index.html` → "Open with Live Server".
 - **Any static server** also works (e.g. `npx serve`).
 
-## Files
+## Project structure
 
-- `index.html` — the page (loads the CSS and the module script)
-- `style.css` — layout / centering
-- `script.js` — the simulation (particles, constraints, input, render loop)
-- `lib.js` — small math/grid helpers (vendored from the original pen so the
-  project is self-contained)
+```
+index.html              the page (loads style.css and src/main.js)
+style.css               layout / centering
+src/
+  main.js               entry point: loads the source text and runs the loop
+  config.js             shared CONFIG (grid size, gravity, damping, …)
+  math/
+    Vec2.js             2D vector helper
+    grid.js             grid/math helpers (vendored from the original pen)
+  physics/
+    Particle.js         a point mass (Verlet integration)
+    Constraint.js       a distance constraint between two particles
+    Cloth.js            the cloth model: builds & steps the particle grid
+  input/
+    Input.js            mouse grab / push interaction
+  render/
+    Renderer.js         canvas + glyph atlas + per-frame drawing
+```
+
+How it fits together: `main.js` builds a `Cloth` (the model), a `Renderer`
+(the view) and wires up `Input`, then each frame calls `cloth.update()`,
+`cloth.solve()` and `renderer.render(cloth)`.
 
 ## Credits
 
@@ -30,4 +49,4 @@ Originally a CodePen by shubniggurath:
 [xbwOJye](https://codepen.io/shubniggurath/pen/xbwOJye). The helper module was
 originally imported from
 [OPyPdmm.js](https://codepen.io/shubniggurath/pen/OPyPdmm.js) and is now
-included locally as `lib.js`.
+vendored locally in `src/math/grid.js`.
