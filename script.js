@@ -15,8 +15,8 @@ const w = Math.min(400, window.innerWidth - 100), h = Math.min(400, window.inner
 const CONFIG = {
   awidth: w,
   aheight: h,
-  gridW: Math.min(50, Math.floor(w/10)), // arbitrary something something
-  gridH: Math.min(50, Math.floor(w/5)),
+  gridW: Math.min(45, Math.floor(w/12)), // more columns than rows so cells are taller than wide (chars are taller than wide)
+  gridH: Math.min(30, Math.floor(w/16)),
   gravity: .2,
   damping: .99,
   iterationsPerFrame: 5,
@@ -33,12 +33,13 @@ CONFIG.cellHeight = CONFIG.aheight/(CONFIG.gridH-1);
 
 window.addEventListener('resize', () => {
   if(c && c.width) {
-    c.width = window.innerWidth;
-    c.height = window.innerHeight;
-    CONFIG.awidth = Math.min(CONFIG.width, c.width - 100);
-    CONFIG.aheight = Math.min(CONFIG.height, c.height - 100);
-    CONFIG.cellWidth = CONFIG.awidth/(CONFIG.gridW-1)
-    CONFIG.cellHeight = CONFIG.aheight/(CONFIG.gridH-1);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = window.innerWidth * dpr;
+    c.height = window.innerHeight * dpr;
+    c.style.width = window.innerWidth + 'px';
+    c.style.height = window.innerHeight + 'px';
+    // The cloth keeps its fixed size and stays centered (drawCode recomputes the
+    // offset from the window size each frame), so nothing else needs updating here.
   }
 })
 
@@ -47,26 +48,34 @@ function main() {
   fullCode = main.toString();
   const { awidth: width, aheight: height, gridW, gridH, gravity, damping, iterationsPerFrame, compressFactor, stretchFactor, cellWidth, cellHeight } = CONFIG;
   
+  const dpr = Math.min(window.devicePixelRatio || 1, 2); // render at the screen's real pixel density
+  const tilePad = 1.8; // tile is this many ems so tall/bold glyphs aren't clipped
   const charCanvases = {};
-  const fontSize = Math.max(12, cellHeight * 1.2);
+  // Size the glyph to fit its cell in BOTH directions so rows/columns don't overlap.
+  // Monospace advance width is ~0.6em, so the width needs cellWidth / 0.6.
+  const fontSize = Math.max(8, Math.min(cellHeight, cellWidth / 0.6));
   for (const ch of new Set(fullCode)) {
     if (ch === ' ') continue;
     const off = document.createElement('canvas');
-    off.width = off.height = Math.ceil(fontSize * 1.4);
+    // Render the tile at dpr resolution; the logical size it represents is fontSize * tilePad.
+    off.width = off.height = Math.ceil(fontSize * tilePad * dpr);
     const octx = off.getContext('2d');
+    octx.scale(dpr, dpr);
     octx.font = `bold ${fontSize}px monospace`;
     octx.textAlign = 'center';
     octx.textBaseline = 'middle';
     octx.fillStyle = '#333';
-    octx.fillText(ch, off.width / 2, off.height / 2);
+    octx.fillText(ch, off.width / (2 * dpr), off.height / (2 * dpr));
     charCanvases[ch] = off;
   }
   
   c = document.createElement('canvas');
   container.innerHTML = '';
   container.appendChild(c);
-  c.width = window.innerWidth;
-  c.height = window.innerHeight;
+  c.width = window.innerWidth * dpr;
+  c.height = window.innerHeight * dpr;
+  c.style.width = window.innerWidth + 'px';
+  c.style.height = window.innerHeight + 'px';
   const ctx = c.getContext('2d');
   
   const particles = [];
@@ -132,16 +141,17 @@ function main() {
   }
 
   function drawCode() {
-    const offset = [c.width/2-width/2,c.height/2-height/2 - 30];
+    const offset = [window.innerWidth/2 - width/2, window.innerHeight/2 - height/2 - 30];
+    const tileSize = fontSize * tilePad; // logical size each glyph tile represents
+    const half = tileSize / 2;
     particles.forEach(p => {
       if (p.char && p.char !== " ") {
         const constraint = p.downConstraint;
         let angle = 0;
-        
+
         const img = charCanvases[p.char];
         if (!img) return;
-        const half = img.width / 2;
-        
+
         let cos = 1, sin = 0;
 
         if (constraint) {
@@ -156,10 +166,9 @@ function main() {
         // if (angle !== 0) ctx.rotate(angle);
         // const cos = Math.cos(angle);
         // const sin = Math.sin(angle);
-        ctx.setTransform(cos, sin, -sin, cos, p.pos.x+offset[0], p.pos.y+offset[1]);
+        ctx.setTransform(cos * dpr, sin * dpr, -sin * dpr, cos * dpr, (p.pos.x + offset[0]) * dpr, (p.pos.y + offset[1]) * dpr);
 
-        // ctx.fillText(p.char, 0, 0);
-        ctx.drawImage(img, -half, -half);
+        ctx.drawImage(img, -half, -half, tileSize, tileSize);
 
         // if (angle !== 0) ctx.rotate(-angle);
         // ctx.translate(-p.pos.x, -p.pos.y);
@@ -210,8 +219,8 @@ class Input {
   }
   pointerdown(e) {
     const rect = this.rect;
-    this.mousePos.x = e.clientX - c.width/2 + CONFIG.awidth/2;
-    this.mousePos.y = e.clientY - c.height/2 + CONFIG.aheight/2;
+    this.mousePos.x = e.clientX - window.innerWidth/2 + CONFIG.awidth/2;
+    this.mousePos.y = e.clientY - window.innerHeight/2 + CONFIG.aheight/2;
 
     for (const p of this.particles) {
       if (this.mousePos.subtractNew(p.pos).length < this.grabRadius) {
@@ -237,8 +246,8 @@ class Input {
   }
   pointermove(e) {
     const rect = this.rect;
-    this.mousePos.x = e.clientX - c.width/2 + CONFIG.awidth/2;
-    this.mousePos.y = e.clientY - c.height/2 + CONFIG.aheight/2;
+    this.mousePos.x = e.clientX - window.innerWidth/2 + CONFIG.awidth/2;
+    this.mousePos.y = e.clientY - window.innerHeight/2 + CONFIG.aheight/2;
 
     if (this.grabbedParticle) {
       this.grabbedParticle.pos.reset(this.mousePos.x, this.mousePos.y);
